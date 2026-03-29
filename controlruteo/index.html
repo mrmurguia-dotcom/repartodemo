@@ -1,119 +1,112 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>M2 - Panel de Chofer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .btn-m2 { background: #1e3a5f; transition: all 0.2s; }
-        .btn-m2:active { transform: scale(0.98); }
-        .btn-orange { background: #ef6c00; }
-        .bg-m2 { background: #1e3a5f; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M2 - Dashboard Central de Ruteo</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Estilos basados en tu paleta de colores */
+    body { font-family: 'Roboto', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    h1 { margin: 0; color: #1e3a5f; font-size: 1.5rem; }
+    
+    .btn-refresh { background: #1e3a5f; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    .btn-refresh:hover { background: #2a528a; }
+
+    .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    
+    .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.2s; }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; }
+    .cp-title { font-size: 1.2rem; font-weight: bold; color: #1e3a5f; }
+    
+    .card-body { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+    .chart-container { width: 100px; height: 100px; }
+
+    /* Colores solicitados para el detalle */
+    .info-detalles { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; }
+    .info-detalles li { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
+    
+    .btn-sheet { display: block; width: 100%; text-align: center; background: #dee2e6; color: black; text-decoration: none; padding: 10px; margin-top: 15px; border-radius: 8px; font-weight: bold; }
+  </style>
 </head>
-<body class="bg-slate-50 p-4">
+<body>
 
-    <div class="text-center mb-6">
-        <img src="../logom2.jpg" alt="M2" class="mx-auto w-32 mb-2">
-        <h1 class="text-xl font-bold text-[#1e3a5f]">Panel de Chofer</h1>
-        <p class="text-xs text-slate-500">M2 Consultoría Digital</p>
-    </div>
+<div class="header">
+  <h1>📊 Panel Central M2</h1>
+  <button class="btn-refresh" onclick="cargarDashboard()">🔄 Actualizar Datos</button>
+</div>
 
-    <div id="vistaIngreso" class="bg-white p-6 rounded-xl shadow-md border border-slate-200 space-y-4 max-w-md mx-auto">
-        <div>
-            <label class="block text-xs font-bold text-slate-500 mb-1">CARTA DE PORTE</label>
-            <input type="number" id="cpInput" class="w-full p-3 rounded-lg border border-slate-300 outline-none focus:border-blue-900" placeholder="Ingrese Nro CP">
+<div id="grid" class="grid-container">
+  <div style="grid-column: 1/-1; text-align: center;">Conectando con Google Sheets...</div>
+</div>
+
+<script>
+  // REEMPLAZA ESTA URL CON LA DE TU IMPLEMENTACIÓN DE APPS SCRIPT
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxXr0Q-jP2dfamFAU6U10nNNctjny7Sl7WkqVr251Ks6RrnLdXWPFylNFOykE0YmKfF/exec";
+
+  async function cargarDashboard() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">Cargando información actualizada...</div>';
+    
+    try {
+      const response = await fetch(`${WEB_APP_URL}?action=getDashboard`);
+      const resumen = await response.json();
+      renderizar(resumen);
+    } catch (err) {
+      grid.innerHTML = `<div style="color:red">Error de conexión: ${err.message}</div>`;
+    }
+  }
+
+  function renderizar(resumen) {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+
+    resumen.forEach((item, index) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      
+      const s = item.stats;
+      const progreso = Math.round(((item.total - s.PENDIENTE) / item.total) * 100) || 0;
+
+      card.innerHTML = `
+        <div class="card-header">
+          <span class="cp-title">CP ${item.cp}</span>
+          <span style="font-size:0.8rem">${item.estadoRuta}</span>
         </div>
-        <div>
-            <label class="block text-xs font-bold text-slate-500 mb-1">CHOFER</label>
-            <select id="choferSelect" class="w-full p-3 rounded-lg border border-slate-300 bg-white" onchange="verificarOtro(this.value)">
-                <option value="" disabled selected>Seleccione...</option>
-                <option value="jose lopez">José López</option>
-                <option value="juan perez">Juan Pérez</option>
-                <option value="alejandro rodriguez">Alejandro Rodríguez</option>
-                <option value="otro">Otro (Manual)</option>
-            </select>
-            <input type="text" id="choferManual" class="hidden mt-2 w-full p-3 rounded-lg border border-orange-300 outline-none" placeholder="Nombre completo">
+        <div class="card-body" onclick="document.getElementById('det-${index}').style.display = document.getElementById('det-${index}').style.display === 'block' ? 'none' : 'block'">
+          <div class="chart-container"><canvas id="c-${index}"></canvas></div>
+          <div style="text-align: right;">
+             <div style="font-size: 1.8rem; font-weight: bold;">${progreso}%</div>
+             <div style="font-size: 0.7rem; color: #666;">PROGRESO</div>
+          </div>
         </div>
-        <button onclick="buscarCP()" id="btnBuscar" class="w-full btn-m2 text-white p-4 rounded-lg font-bold shadow-lg">CARGAR HOJA DE RUTA</button>
-    </div>
-
-    <div id="vistaCarga" class="hidden space-y-4 max-w-md mx-auto">
-        <div class="bg-white p-3 rounded-lg shadow-sm border border-blue-100 flex justify-between items-center">
-            <span class="text-xs font-bold text-slate-400">FECHA: <span id="fechaLabel" class="text-blue-900">--/--/--</span></span>
-            <button onclick="location.reload()" class="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500">CAMBIAR CP</button>
+        <div id="det-${index}" class="info-detalles">
+          <li style="color:#2d572c">Entregados: ${s.ENTREGADO}</li>
+          <li style="color:#856404">Parciales: ${s.PARCIAL}</li>
+          <li style="color:#a52828">Totales: ${s.TOTAL}</li>
+          <li style="color:#666">Pendientes: ${s.PENDIENTE}</li>
+          <a href="${item.url}" target="_blank" class="btn-sheet">IR A LA PLANILLA</a>
         </div>
-        <div id="contenedorClientes" class="space-y-3"></div>
-    </div>
+      `;
+      grid.appendChild(card);
 
-    <div id="modalNovedades" class="hidden fixed inset-0 bg-black/70 z-50 p-4 flex justify-center items-center backdrop-blur-sm">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl space-y-4">
-            <h3 class="text-lg font-bold text-[#1e3a5f]">Novedad: <span id="faciLabel"></span></h3>
-            
-            <div class="space-y-2">
-                <button onclick="setNovedad('ENTREGADO')" class="w-full p-3 rounded-lg border-2 border-emerald-100 bg-emerald-50 text-emerald-700 font-bold text-left">A- ENTREGADO</button>
-                <button onclick="setNovedad('RECHAZO PARCIAL')" class="w-full p-3 rounded-lg border-2 border-amber-100 bg-amber-50 text-amber-700 font-bold text-left">B- RECHAZO PARCIAL</button>
-                <button onclick="setNovedad('RECHAZO TOTAL')" class="w-full p-3 rounded-lg border-2 border-red-100 bg-red-50 text-red-700 font-bold text-left">C- RECHAZO TOTAL</button>
-            </div>
+      new Chart(document.getElementById(`c-${index}`), {
+        type: 'doughnut',
+        data: {
+          datasets: [{
+            data: [s.ENTREGADO, s.PARCIAL, s.TOTAL, s.PENDIENTE],
+            backgroundColor: ['#b6d7a8', '#ffe599', '#ea9999', '#dee2e6'], // Colores originales
+            borderWidth: 0
+          }]
+        },
+        options: { cutout: '75%', plugins: { legend: { display: false } } }
+      });
+    });
+  }
 
-            <div id="seccionRechazo" class="hidden space-y-3 border-t pt-4">
-                <select id="motivoSelect" class="w-full p-3 rounded-lg border border-slate-300" onchange="verificarAudio(this.value)">
-                    <option value="" disabled selected>Motivo del rechazo...</option>
-                    <option value="1- cliente cerrado">1- cliente cerrado</option>
-                    <option value="2- diferencia de precio">2- diferencia de precio</option>
-                    <option value="3- pedido duplicado">3- pedido duplicado</option>
-                    <option value="4- no pedido">4- no pedido</option>
-                    <option value="5- otros motivos">5- otros motivos</option>
-                </select>
-                <button id="btnGrabar" onclick="toggleAudio()" class="hidden w-full bg-orange-500 text-white p-3 rounded-lg font-bold">🎤 GRABAR AUDIO</button>
-            </div>
-
-            <div class="border-t pt-4">
-                <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Foto de FC o RTO</label>
-                <input type="file" id="fotoInput" accept="image/*" capture="camera" class="text-xs">
-            </div>
-
-            <div class="flex gap-2">
-                <button onclick="cerrarModal()" class="flex-1 p-3 bg-slate-100 rounded-lg font-bold text-slate-500">VOLVER</button>
-                <button onclick="enviarFinal()" id="btnFin" class="flex-1 p-3 btn-m2 text-white rounded-lg font-bold">GUARDAR</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // --- COPIAR AQUÍ LA URL DE TU APPS SCRIPT ---
-        const WEB_APP_URL = "TU_URL_DE_APPS_SCRIPT"; 
-
-        let nroCP = "";
-        let chofer = "";
-        let nav = { fila: null, factura: null, status: null, audio: null };
-
-        function verificarOtro(v) { document.getElementById('choferManual').style.display = (v === 'otro') ? 'block' : 'none'; }
-        function verificarAudio(v) { document.getElementById('btnGrabar').style.display = (v === '5- otros motivos') ? 'block' : 'none'; }
-
-        async function buscarCP() {
-            nroCP = document.getElementById('cpInput').value;
-            const sel = document.getElementById('choferSelect').value;
-            if(!nroCP || !sel) return alert("Complete los datos");
-            
-            chofer = (sel === 'otro') ? document.getElementById('choferManual').value : sel;
-            
-            const b = document.getElementById('btnBuscar');
-            b.innerText = "BUSCANDO..."; b.disabled = true;
-
-            // Simulación o llamada real a Apps Script (esto lo conectaremos al final)
-            // Por ahora llamamos a google.script.run si lo subes a GAS o fetch si es externo
-            alert("Buscando en servidor...");
-        }
-
-        function setNovedad(s) {
-            nav.status = s;
-            document.getElementById('seccionRechazo').style.display = (s === 'ENTREGADO') ? 'none' : 'block';
-        }
-
-        function cerrarModal() { document.getElementById('modalNovedades').classList.add('hidden'); }
-    </script>
+  window.onload = cargarDashboard;
+</script>
 </body>
 </html>

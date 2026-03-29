@@ -17,7 +17,7 @@
     .filters-container { display: flex; gap: 15px; flex-wrap: wrap; background: #f8f9fa; padding: 15px; border-radius: 8px; align-items: center; }
     .filter-item { display: flex; flex-direction: column; gap: 5px; }
     .filter-item label { font-size: 0.8rem; font-weight: bold; color: #555; }
-    .filter-item input, .filter-item select { padding: 8px; border: 1px solid #ddd; border-radius: 5px; outline: none; }
+    .filter-item input, .filter-item select { padding: 8px; border: 1px solid #ddd; border-radius: 5px; outline: none; background: white; }
 
     .btn-refresh { background: #1e3a5f; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
     .btn-refresh:hover { background: #2a528a; }
@@ -56,7 +56,7 @@
   <div class="filters-container">
     <div class="filter-item">
       <label>📅 Fecha de Reparto</label>
-      <input type="text" id="filtroFecha" placeholder="Ej: 29/03/2026" onkeyup="filtrar()">
+      <input type="date" id="filtroFecha" onchange="filtrar()">
     </div>
     <div class="filter-item">
       <label>🚚 Estado del Recorrido</label>
@@ -66,6 +66,7 @@
         <option value="FINALIZADO">Finalizado</option>
       </select>
     </div>
+    <button class="btn-refresh" style="background:#666; margin-top:15px;" onclick="limpiarFiltros()">Limpiar Filtros</button>
   </div>
 </div>
 
@@ -91,16 +92,29 @@
   }
 
   function filtrar() {
-    const textoFecha = document.getElementById('filtroFecha').value.toLowerCase();
+    const fechaCalendario = document.getElementById('filtroFecha').value; // Retorna yyyy-mm-dd
     const estadoSeleccionado = document.getElementById('filtroEstado').value;
 
+    // Convertimos yyyy-mm-dd a dd/mm/yyyy para comparar con la data de Sheets
+    let fechaFormateada = "";
+    if (fechaCalendario) {
+      const partes = fechaCalendario.split("-");
+      fechaFormateada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
     const datosFiltrados = datosGlobales.filter(item => {
-      const coincideFecha = item.fecha.toLowerCase().includes(textoFecha);
+      const coincideFecha = fechaFormateada === "" || item.fecha === fechaFormateada;
       const coincideEstado = estadoSeleccionado === "TODOS" || item.estadoRuta === estadoSeleccionado;
       return coincideFecha && coincideEstado;
     });
 
     renderizar(datosFiltrados);
+  }
+
+  function limpiarFiltros() {
+    document.getElementById('filtroFecha').value = "";
+    document.getElementById('filtroEstado').value = "TODOS";
+    renderizar(datosGlobales);
   }
 
   function renderizar(resumen) {

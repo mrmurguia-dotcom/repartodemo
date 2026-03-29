@@ -59,9 +59,9 @@
             </div>
             
             <div class="grid gap-2.5">
-                <button onclick="confirmarEntregado()" class="btn-status w-full p-4 rounded-xl border-2 border-slate-100 font-black text-left hover:bg-emerald-50 hover:border-emerald-200 transition-all text-slate-700"><span class="text-emerald-500 mr-2">A-</span> ENTREGADO</button>
-                <button onclick="setRechazo('RECHAZO PARCIAL', this)" class="btn-status w-full p-4 rounded-xl border-2 border-slate-100 font-black text-left hover:bg-amber-50 hover:border-amber-200 transition-all text-slate-700"><span class="text-amber-500 mr-2">B-</span> RECHAZO PARCIAL</button>
-                <button onclick="setRechazo('RECHAZO TOTAL', this)" class="btn-status w-full p-4 rounded-xl border-2 border-slate-100 font-black text-left hover:bg-red-50 hover:border-red-200 transition-all text-slate-700"><span class="text-red-500 mr-2">C-</span> RECHAZO TOTAL</button>
+                <button onclick="setEstado('ENTREGADO', this)" class="btn-status w-full p-4 rounded-xl border-2 border-slate-100 font-black text-left hover:bg-emerald-50 hover:border-emerald-200 transition-all text-slate-700"><span class="text-emerald-500 mr-2">A-</span> ENTREGADO</button>
+                <button onclick="setEstado('RECHAZO PARCIAL', this)" class="btn-status w-full p-4 rounded-xl border-2 border-slate-100 font-black text-left hover:bg-amber-50 hover:border-amber-200 transition-all text-slate-700"><span class="text-amber-500 mr-2">B-</span> RECHAZO PARCIAL</button>
+                <button onclick="setEstado('RECHAZO TOTAL', this)" class="btn-status w-full p-4 rounded-xl border-2 border-slate-100 font-black text-left hover:bg-red-50 hover:border-red-200 transition-all text-slate-700"><span class="text-red-500 mr-2">C-</span> RECHAZO TOTAL</button>
             </div>
 
             <div id="seccionNovedad" class="hidden space-y-3 pt-4 border-t border-slate-100">
@@ -197,23 +197,19 @@
             resetModal();
         }
 
-        function confirmarEntregado() {
-            const cliente = appData.lista[appData.current.indexCliente];
-            const pendientes = cliente.documentos.filter(d => d.status === 'PENDIENTE');
-            if (pendientes.length > 1) {
-                if (confirm(`¿Querés marcar las ${pendientes.length} facturas como ENTREGADAS?`)) {
-                    appData.current.multiple = pendientes.map(f => parseInt(f.fila)); 
-                }
-            }
-            appData.current.status = 'ENTREGADO';
-            enviarFinal();
-        }
-
-        function setRechazo(tipo, btn) {
+        // --- CORRECCIÓN CLAVE: SEPARAR SELECCIÓN DE ENVÍO ---
+        function setEstado(tipo, btn) {
             appData.current.status = tipo;
-            document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('ring-2', 'ring-blue-500', 'bg-slate-50'));
-            btn.classList.add('ring-2', 'ring-blue-500', 'bg-slate-50');
-            document.getElementById('seccionNovedad').classList.remove('hidden');
+            
+            // Estética de los botones
+            document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('ring-4', 'ring-blue-500', 'bg-blue-50'));
+            btn.classList.add('ring-4', 'ring-blue-500', 'bg-blue-50');
+
+            if (tipo === 'ENTREGADO') {
+                document.getElementById('seccionNovedad').classList.add('hidden');
+            } else {
+                document.getElementById('seccionNovedad').classList.remove('hidden');
+            }
         }
 
         function checkMotivoAudio(select) {
@@ -251,7 +247,6 @@
             }
         }
 
-        // --- COMPRESIÓN DE FOTO PARA EVITAR TILDES ---
         function previewFoto(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
@@ -260,17 +255,13 @@
                     img.src = e.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800; // Ancho máximo razonable para un reporte
+                        const MAX_WIDTH = 800; 
                         const scaleSize = MAX_WIDTH / img.width;
                         canvas.width = MAX_WIDTH;
                         canvas.height = img.height * scaleSize;
-
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                        // Comprimimos la calidad al 70%
                         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                        
                         document.getElementById('imgPreview').src = dataUrl;
                         document.getElementById('previewContainer').classList.remove('hidden');
                         appData.current.foto = dataUrl;
@@ -287,11 +278,24 @@
         }
 
         async function enviarFinal() {
+            if (!appData.current.status) return alert("Por favor seleccioná un estado (Entregado o Rechazo).");
+
             const motivo = document.getElementById('motivoSelect').value;
+            
+            // Validaciones para Rechazos
             if (appData.current.status !== 'ENTREGADO') {
-                if (!motivo) return alert("Falta seleccionar el motivo.");
+                if (!motivo) return alert("Falta seleccionar el motivo del rechazo.");
                 if (motivo.includes("5-") && !appData.current.audio) return alert("Por favor graba un audio explicando el motivo.");
-                if (!appData.current.foto) return alert("Es OBLIGATORIO sacar una foto.");
+                if (!appData.current.foto) return alert("Es OBLIGATORIO sacar una foto para procesar el rechazo.");
+            } else {
+                // Si es Entregado, preguntamos si quiere marcar todas las pendientes del cliente
+                const cliente = appData.lista[appData.current.indexCliente];
+                const pendientes = cliente.documentos.filter(d => d.status === 'PENDIENTE');
+                if (pendientes.length > 1) {
+                    if (confirm(`¿Querés marcar las ${pendientes.length} facturas como ENTREGADAS?`)) {
+                        appData.current.multiple = pendientes.map(f => parseInt(f.fila)); 
+                    }
+                }
             }
 
             const btn = document.getElementById('btnFin');
@@ -311,23 +315,16 @@
                 }
             };
 
-            // Respuesta visual inmediata
             actualizarEstadoLocal();
             
             try {
-                // Fetch optimizado: no esperamos la respuesta pesada de Google
-                fetch(WEB_APP_URL, { 
-                    method: 'POST', 
-                    mode: 'no-cors', 
-                    body: JSON.stringify(payload) 
-                });
-            } catch (e) { console.log("Post enviado."); }
+                fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+            } catch (e) { console.log("Envío realizado."); }
             
-            // Cerramos todo de una vez
             setTimeout(() => {
                 cerrarModal();
                 renderizarLista();
-            }, 300);
+            }, 500);
         }
 
         function actualizarEstadoLocal() {
@@ -341,7 +338,7 @@
         }
 
         function cerrarSesion() {
-            if(confirm("¿Cerrar recorrido?")) {
+            if(confirm("¿Cerrar sesión de recorrido?")) {
                 localStorage.removeItem('m2_sesion_recorrido');
                 location.reload();
             }
@@ -352,8 +349,10 @@
             document.getElementById('seccionAudio').classList.add('hidden');
             document.getElementById('audioStatus').innerText = "Presioná para empezar a grabar";
             document.getElementById('audioTexto').innerText = "GRABAR EXPLICACIÓN";
-            document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('ring-2', 'ring-blue-500', 'bg-slate-50'));
+            document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('ring-4', 'ring-blue-500', 'bg-blue-50'));
             document.getElementById('motivoSelect').value = "";
+            btnFin.innerHTML = "GUARDAR CAMBIOS";
+            btnFin.disabled = false;
             borrarFoto();
         }
 

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Reparto DEMO - M2</title>
+
+    <link rel="icon" type="image/png" href="favicon-32x32.png">
+
+    <link rel="manifest" href="manifest.json">
+
+    <link rel="apple-touch-icon" href="apple-icon-180x180.png">
+
+    <meta name="theme-color" content="#1e3a5f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Panel Reparto DEMO - M2</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-icon-180x180.png">
+<meta name="theme-color" content="#1e3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 30px; background: #f9fbfd; color: #333; }
+        
+        .logom2 { max-width: 150px; margin-bottom: 20px; } 
+        
+        h1 { color: #1e3a5f; margin-bottom: 10px; font-size: 24px; }
+        p { color: #666; font-size: 16px; margin-bottom: 30px; }
+        
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .btn { 
+            display: inline-block; 
+            width: 280px; 
+            padding: 15px 20px; 
+            background: #1e3a5f; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            font-size: 18px; 
+            box-shadow: 0 4px 6px rgba(30, 58, 95, 0.2); 
+            transition: transform 0.2s, background 0.3s ease; 
+        }
+        
+        .btn:active { transform: scale(0.98); }
+        .btn:hover { background: #142842; }
+
+        .btn-secondary { background: #2e7d32; }
+        .btn-secondary:hover { background: #1b5e20; }
+
+        .btn-picking { background: #ef6c00; }
+        .btn-picking:hover { background: #e65100; }
+
+        .btn-unidades { background: #111827; }
+        .btn-unidades:hover { background: #000000; }
+    </style>
+</head>
+
+<body>
+
+    <img src="logom2.jpg" alt="M2 Consultoría Digital" class="logom2">
+    
+    <h1>Inventario DEMO - M2</h1>
+    <p>Desarrollado por M2 Consultoría Digital</p>
+    
+    <div class="button-container">
+        <a href="qrautoestiba/index.html" class="btn">Autoestiba - Sistema de Voz</a>
+
+        <a href="qrcavayanexo/index.html" class="btn btn-secondary">Anexo y Cava - Sistema de Voz</a>
+
+        <a href="qrpicking/index.html" class="btn btn-picking">Picking - Sistema de Voz</a>
+
+        <a href="qrunidades/index.html" class="btn btn-unidades">Unidades - Sistema de Voz</a>
+    </div>
+    <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register(""sw.js"")
+      .then(reg => console.log("✅ SW registrado", reg.scope))
+      .catch(err => console.error("❌ Error SW", err));
+  });
+}
+</script>
+
+</body>
+</html>

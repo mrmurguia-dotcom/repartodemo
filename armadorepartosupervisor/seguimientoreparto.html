@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión Reparto DEMO - M2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+</head>
+<body class="bg-slate-100 p-4 md:p-10">
+    <div class="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl p-8 border border-slate-200">
+        <div class="flex justify-between items-center mb-8 border-b pb-4">
+            <h1 class="text-3xl font-black text-blue-900 italic">REPARTO DEMO M2</h1>
+            <img src="logom2.jpg" alt="M2" class="h-10">
+        </div>
+
+        <div class="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-200">
+            <label class="block text-blue-900 font-bold mb-2">FECHA DE REPARTO:</label>
+            <input type="date" id="fechaReparto" class="w-full p-2 rounded-lg border-2 border-blue-300 focus:border-orange-500 outline-none">
+        </div>
+
+        <div id="dropZone" class="border-4 border-dashed border-blue-200 rounded-2xl p-12 text-center cursor-pointer hover:bg-blue-50 transition-all mb-8 group">
+            <div class="text-blue-400 mb-2 group-hover:scale-110 transition-transform">📁</div>
+            <p class="text-slate-500 font-bold uppercase tracking-tighter text-sm">Arrastrá los PDF o hacé click aquí</p>
+            <input type="file" id="fileInput" multiple accept="application/pdf" class="hidden">
+        </div>
+
+        <div id="results" class="hidden animate-in fade-in duration-500">
+            <div class="bg-blue-900 text-white p-4 rounded-xl flex justify-between items-center mb-6 shadow-lg">
+                <span class="font-bold uppercase text-xs tracking-widest">Resumen de Carga</span>
+                <button onclick="enviarALaNube()" id="btnSync" class="bg-orange-500 hover:bg-orange-600 px-8 py-2 rounded-lg font-black shadow-md active:scale-95 transition-all">SINCRONIZAR SHEETS</button>
+            </div>
+            <div id="contenedorTablas" class="space-y-6"></div>
+        </div>
+    </div>
+
+    <script>
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxky-IKSYlb-v1M3UARQXPj_6e-q6yAYffeFSryOKb9ZEqER38F0J3mR7cwUmZurDEN/exec"; 
+
+        let store = {};
+
+        document.getElementById('fechaReparto').valueAsDate = new Date();
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => procesar(e.target.files);
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('bg-blue-100', 'border-blue-400');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('bg-blue-100', 'border-blue-400');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('bg-blue-100', 'border-blue-400');
+            if (e.dataTransfer.files.length > 0) {
+                procesar(e.dataTransfer.files);
+            }
+        });
+
+        async function procesar(files) {
+            for (let file of files) {
+                const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const pg = await pdf.getPage(i);
+                    const txt = (await pg.getTextContent()).items.map(it => it.str).join(' ');
+
+                    const esRemito = txt.includes("Remito R");
+                    const labelTipo = esRemito ? "REMITO" : "FACTURA";
+                    
+                    const nroMatch = txt.match(/Nro\.:\s*(\d{4,5}\s*-\s*\d{8})/);
+                    let nro = nroMatch ? nroMatch[1] : null;
+
+                    if (nro) {
+                        const cp = txt.match(/Carta\s+Porte.*?:\s*(\d+)/)?.[1] || "S/CP";
+                        const cliMatch = txt.match(/Cliente:\s*(\d+\s+.*?)(?=\s+SN\s+|\s+SR\s+|\s+VN\s+|\s+Direcci)/i);
+                        const cli = cliMatch ? cliMatch[1].trim() : (txt.match(/Cliente:\s*(\d+\s+[A-Za-z\s.,]+)/)?.[1]?.trim() || "Cliente");
+                        
+                        // --- CORRECCIÓN DE DIRECCIÓN IMPLEMENTADA ---
+                        // Frena antes de "Categoría", "LU A VI", "VN", "SR 1234", "SN 1234" o "1A 1234"
+                        const dirMatch = txt.match(/Dirección\s+(.*?)(?=\s+Categoría|\s+LU\s+A\s+VI|\s+VN\s+|\s+SR\s+\d{4}|\s+SN\s+\d{4}|\s+\d[A-Z]\s+\d{4})/i);
+                        const dir = dirMatch ? dirMatch[1].trim() : (txt.match(/Dirección\s+(.*?)(?=\s+Categoría)/)?.[1]?.trim() || "S/D");
+                        // --------------------------------------------
+                        
+                        // EXTRACCIÓN MEJORADA: Busca "Total Unidades" (Factura) o "Botellas" (Remito)
+                        const cajas = parseFloat(txt.match(/Total\s+Cajas\s*:\s*([\d.,]+)/)?.[1]?.replace('.','').replace(',','.')) || 0;
+                        
+                        let unidades = 0;
+                        const matchUnidades = txt.match(/Total\s+Unidades\s*:\s*([\d.,]+)/i);
+                        const matchBotellas = txt.match(/Botellas\s*:\s*([\d.,]+)/i);
+                        
+                        if (matchUnidades) {
+                            unidades = parseFloat(matchUnidades[1].replace('.','').replace(',','.'));
+                        } else if (matchBotellas) {
+                            unidades = parseFloat(matchBotellas[1].replace('.','').replace(',','.'));
+                        }
+
+                        const total = parseFloat(txt.match(/Total:\s*([\d.,]+)/)?.[1]?.replace('.','').replace(',','.')) || 0;
+
+                        if (!store[cp]) store[cp] = { docs: [] };
+                        
+                        let index = store[cp].docs.findIndex(d => d.numero === nro);
+                        if (index === -1) {
+                            store[cp].docs.push({ 
+                                numero: nro, 
+                                tipo: labelTipo, 
+                                cliente: cli, 
+                                direccion: dir, 
+                                cajas: cajas,
+                                unidades: unidades,
+                                importe: total 
+                            });
+                        } else if (cajas > store[cp].docs[index].cajas) {
+                            store[cp].docs[index].cajas = cajas;
+                            store[cp].docs[index].unidades = unidades;
+                            store[cp].docs[index].importe = total;
+                        }
+                    }
+                }
+            }
+            dibujar();
+        }
+
+        function dibujar() {
+            const container = document.getElementById('contenedorTablas');
+            container.innerHTML = '';
+            for (let cp in store) {
+                let filas = store[cp].docs.map(d => `
+                    <tr class="border-b text-sm hover:bg-slate-50 transition-colors">
+                        <td class="p-3 font-bold text-slate-700">${d.numero}</td>
+                        <td class="p-3 text-[10px]"><span class="${d.tipo === 'REMITO' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'} px-2 py-0.5 rounded font-bold">${d.tipo}</span></td>
+                        <td class="p-3 text-slate-500">${d.cliente}</td>
+                        <td class="p-3 text-right font-black text-blue-600">${d.cajas} CJ</td>
+                        <td class="p-3 text-right font-bold text-slate-600">${d.unidades} UN</td>
+                        <td class="p-3 text-right font-medium text-slate-800">$${d.importe.toLocaleString('es-AR')}</td>
+                    </tr>
+                `).join('');
+
+                container.innerHTML += `
+                    <div id="card-${cp}" class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm mb-6">
+                        <div class="bg-blue-50 px-4 py-3 border-b font-black text-blue-900 flex justify-between items-center">
+                            <span>CP: ${cp}</span>
+                            <div class="flex gap-2">
+                                <span class="text-xs bg-white px-2 py-1 rounded-full border border-blue-200">${store[cp].docs.length} ÍTEMS</span>
+                                <button onclick="quitarCP('${cp}')" class="bg-red-100 text-red-600 hover:bg-red-600 hover:text-white px-3 py-1 rounded-lg text-xs transition-colors">✕ QUITAR</button>
+                            </div>
+                        </div>
+                        <table class="w-full text-left">
+                            <thead class="text-[10px] text-slate-400 uppercase font-bold bg-slate-50">
+                                <th class="p-3">Factura/Remito</th>
+                                <th class="p-3">Tipo</th>
+                                <th class="p-3">Cliente</th>
+                                <th class="p-3 text-right">Cajas</th>
+                                <th class="p-3 text-right">Unidades</th>
+                                <th class="p-3 text-right">Importe</th>
+                            </thead>
+                            <tbody>${filas}</tbody>
+                        </table>
+                    </div>
+                `;
+            }
+            document.getElementById('results').classList.remove('hidden');
+        }
+
+        function quitarCP(cp) {
+            if(confirm(`¿Deseas quitar la Carta de Porte ${cp}?`)) {
+                delete store[cp];
+                dibujar();
+            }
+        }
+
+        async function enviarALaNube() {
+            const fechaInput = document.getElementById('fechaReparto').value;
+            if(!fechaInput) return alert("Por favor selecciona una fecha");
+
+            const [y, m, d] = fechaInput.split('-');
+            const fechaFormateada = `${d}/${m}/${y}`;
+
+            if(Object.keys(store).length === 0) return alert("No hay datos");
+
+            const btn = document.getElementById('btnSync');
+            btn.innerText = "PROCESANDO...";
+            btn.disabled = true;
+            try {
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({ datos: store, fechaManual: fechaFormateada })
+                });
+                alert("✓ Sincronizado con éxito.");
+                store = {}; 
+                dibujar();  
+            } catch (e) {
+                alert("Error de conexión");
+            }
+            btn.innerText = "SINCRONIZAR SHEETS";
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>

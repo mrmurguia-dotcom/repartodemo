@@ -9,8 +9,10 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .btn-m2 { background: #1e3a5f; transition: all 0.2s; }
         .btn-m2:active { transform: scale(0.98); }
-        .btn-orange { background: #ef6c00; }
         .bg-m2 { background: #1e3a5f; }
+        /* Animación de carga */
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #1e3a5f; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-slate-50 p-4">
@@ -18,99 +20,204 @@
     <div class="text-center mb-6">
         <img src="../logom2.jpg" alt="M2" class="mx-auto w-32 mb-2">
         <h1 class="text-xl font-bold text-[#1e3a5f]">Panel de Chofer</h1>
-        <p class="text-xs text-slate-500">M2 Consultoría Digital</p>
+        <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Conexión en Vivo</p>
     </div>
 
-    <div id="vistaIngreso" class="bg-white p-6 rounded-xl shadow-md border border-slate-200 space-y-4 max-w-md mx-auto">
+    <div id="vistaIngreso" class="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 space-y-4 max-w-md mx-auto">
         <div>
-            <label class="block text-xs font-bold text-slate-500 mb-1">CARTA DE PORTE</label>
-            <input type="number" id="cpInput" class="w-full p-3 rounded-lg border border-slate-300 outline-none focus:border-blue-900" placeholder="Ingrese Nro CP">
+            <label class="block text-xs font-bold text-slate-500 mb-1">NRO. CARTA DE PORTE</label>
+            <input type="number" id="cpInput" class="w-full p-4 rounded-xl border-2 border-slate-100 outline-none focus:border-blue-900 bg-slate-50" placeholder="Ej: 10186">
         </div>
         <div>
-            <label class="block text-xs font-bold text-slate-500 mb-1">CHOFER</label>
-            <select id="choferSelect" class="w-full p-3 rounded-lg border border-slate-300 bg-white" onchange="verificarOtro(this.value)">
+            <label class="block text-xs font-bold text-slate-500 mb-1">NOMBRE DEL CHOFER</label>
+            <select id="choferSelect" class="w-full p-4 rounded-xl border-2 border-slate-100 bg-slate-50" onchange="document.getElementById('choferManual').classList.toggle('hidden', this.value !== 'otro')">
                 <option value="" disabled selected>Seleccione...</option>
-                <option value="jose lopez">José López</option>
-                <option value="juan perez">Juan Pérez</option>
-                <option value="alejandro rodriguez">Alejandro Rodríguez</option>
-                <option value="otro">Otro (Manual)</option>
+                <option value="JOSE LOPEZ">JOSE LOPEZ</option>
+                <option value="JUAN PEREZ">JUAN PEREZ</option>
+                <option value="otro">OTRO (INGRESAR NOMBRE)</option>
             </select>
-            <input type="text" id="choferManual" class="hidden mt-2 w-full p-3 rounded-lg border border-orange-300 outline-none" placeholder="Nombre completo">
+            <input type="text" id="choferManual" class="hidden mt-2 w-full p-4 rounded-xl border-2 border-orange-200 outline-none" placeholder="Escriba su nombre">
         </div>
-        <button onclick="buscarCP()" id="btnBuscar" class="w-full btn-m2 text-white p-4 rounded-lg font-bold shadow-lg">CARGAR HOJA DE RUTA</button>
+        <button onclick="buscarCP()" id="btnBuscar" class="w-full btn-m2 text-white p-4 rounded-xl font-black shadow-lg shadow-blue-900/20">CARGAR HOJA DE RUTA</button>
     </div>
 
     <div id="vistaCarga" class="hidden space-y-4 max-w-md mx-auto">
-        <div class="bg-white p-3 rounded-lg shadow-sm border border-blue-100 flex justify-between items-center">
-            <span class="text-xs font-bold text-slate-400">FECHA: <span id="fechaLabel" class="text-blue-900">--/--/--</span></span>
-            <button onclick="location.reload()" class="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500">CAMBIAR CP</button>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-blue-100 flex justify-between items-center">
+            <div>
+                <p class="text-[10px] font-bold text-slate-400">HOJA DE RUTA</p>
+                <p id="fechaLabel" class="text-sm font-black text-blue-900 italic"></p>
+            </div>
+            <button onclick="location.reload()" class="text-[10px] bg-slate-100 px-3 py-2 rounded-lg font-bold text-slate-500">SALIR</button>
         </div>
         <div id="contenedorClientes" class="space-y-3"></div>
     </div>
 
-    <div id="modalNovedades" class="hidden fixed inset-0 bg-black/70 z-50 p-4 flex justify-center items-center backdrop-blur-sm">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl space-y-4">
-            <h3 class="text-lg font-bold text-[#1e3a5f]">Novedad: <span id="faciLabel"></span></h3>
+    <div id="modalNovedades" class="hidden fixed inset-0 bg-black/80 z-50 p-4 flex justify-center items-center backdrop-blur-md">
+        <div class="bg-white p-6 rounded-3xl w-full max-w-sm space-y-5 shadow-2xl">
+            <div class="flex justify-between items-start">
+                <h3 class="text-lg font-black text-[#1e3a5f] leading-tight">STATUS FC:<br><span id="faciLabel" class="text-orange-500 text-sm"></span></h3>
+                <button onclick="cerrarModal()" class="text-slate-300 text-2xl">&times;</button>
+            </div>
             
-            <div class="space-y-2">
-                <button onclick="setNovedad('ENTREGADO')" class="w-full p-3 rounded-lg border-2 border-emerald-100 bg-emerald-50 text-emerald-700 font-bold text-left">A- ENTREGADO</button>
-                <button onclick="setNovedad('RECHAZO PARCIAL')" class="w-full p-3 rounded-lg border-2 border-amber-100 bg-amber-50 text-amber-700 font-bold text-left">B- RECHAZO PARCIAL</button>
-                <button onclick="setNovedad('RECHAZO TOTAL')" class="w-full p-3 rounded-lg border-2 border-red-100 bg-red-50 text-red-700 font-bold text-left">C- RECHAZO TOTAL</button>
+            <div class="grid gap-2">
+                <button onclick="setNovedad('ENTREGADO', this)" class="btn-nav w-full p-4 rounded-xl border-2 border-slate-100 font-bold text-left hover:bg-emerald-50 hover:border-emerald-200 transition-all">A- ENTREGADO</button>
+                <button onclick="setNovedad('RECHAZO PARCIAL', this)" class="btn-nav w-full p-4 rounded-xl border-2 border-slate-100 font-bold text-left hover:bg-amber-50 hover:border-amber-200 transition-all">B- RECHAZO PARCIAL</button>
+                <button onclick="setNovedad('RECHAZO TOTAL', this)" class="btn-nav w-full p-4 rounded-xl border-2 border-slate-100 font-bold text-left hover:bg-red-50 hover:border-red-200 transition-all">C- RECHAZO TOTAL</button>
             </div>
 
-            <div id="seccionRechazo" class="hidden space-y-3 border-t pt-4">
-                <select id="motivoSelect" class="w-full p-3 rounded-lg border border-slate-300" onchange="verificarAudio(this.value)">
-                    <option value="" disabled selected>Motivo del rechazo...</option>
+            <div id="seccionRechazo" class="hidden space-y-3 animate-in fade-in zoom-in duration-300">
+                <select id="motivoSelect" class="w-full p-4 rounded-xl border-2 border-slate-100 bg-slate-50 text-sm font-bold" onchange="checkAudio(this.value)">
+                    <option value="" disabled selected>Seleccione Motivo...</option>
                     <option value="1- cliente cerrado">1- cliente cerrado</option>
                     <option value="2- diferencia de precio">2- diferencia de precio</option>
                     <option value="3- pedido duplicado">3- pedido duplicado</option>
                     <option value="4- no pedido">4- no pedido</option>
                     <option value="5- otros motivos">5- otros motivos</option>
                 </select>
-                <button id="btnGrabar" onclick="toggleAudio()" class="hidden w-full bg-orange-500 text-white p-3 rounded-lg font-bold">🎤 GRABAR AUDIO</button>
+                <button id="btnGrabar" onclick="toggleAudio()" class="hidden w-full bg-orange-100 text-orange-700 p-4 rounded-xl font-bold border-2 border-orange-200">🎤 GRABAR EXPLICACIÓN</button>
+                <p id="audioStatus" class="text-[10px] text-center font-bold text-orange-500"></p>
             </div>
 
-            <div class="border-t pt-4">
-                <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Foto de FC o RTO</label>
-                <input type="file" id="fotoInput" accept="image/*" capture="camera" class="text-xs">
+            <div class="pt-2">
+                <label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Foto Comprobante (Obligatoria)</label>
+                <input type="file" id="fotoInput" accept="image/*" capture="camera" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
             </div>
 
-            <div class="flex gap-2">
-                <button onclick="cerrarModal()" class="flex-1 p-3 bg-slate-100 rounded-lg font-bold text-slate-500">VOLVER</button>
-                <button onclick="enviarFinal()" id="btnFin" class="flex-1 p-3 btn-m2 text-white rounded-lg font-bold">GUARDAR</button>
-            </div>
+            <button onclick="enviarFinal()" id="btnFin" class="w-full p-4 btn-m2 text-white rounded-xl font-black shadow-lg">GUARDAR CAMBIOS</button>
         </div>
     </div>
 
     <script>
-        // --- COPIAR AQUÍ LA URL DE TU APPS SCRIPT ---
-        const WEB_APP_URL = "TU_URL_DE_APPS_SCRIPT"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwyO_NRQW-f9rEGGhLFhU9naB8IjvDlEfWOEeiyE8Wd2txdZU63KxDe5jOswdV7aoaG/exec"; 
 
-        let nroCP = "";
-        let chofer = "";
-        let nav = { fila: null, factura: null, status: null, audio: null };
-
-        function verificarOtro(v) { document.getElementById('choferManual').style.display = (v === 'otro') ? 'block' : 'none'; }
-        function verificarAudio(v) { document.getElementById('btnGrabar').style.display = (v === '5- otros motivos') ? 'block' : 'none'; }
+        let state = { cp: "", chofer: "", current: {}, audioB64: null, mediaRecorder: null, chunks: [] };
 
         async function buscarCP() {
-            nroCP = document.getElementById('cpInput').value;
+            state.cp = document.getElementById('cpInput').value;
             const sel = document.getElementById('choferSelect').value;
-            if(!nroCP || !sel) return alert("Complete los datos");
+            if(!state.cp || !sel) return alert("Faltan datos");
+            state.chofer = (sel === 'otro') ? document.getElementById('choferManual').value : sel;
             
-            chofer = (sel === 'otro') ? document.getElementById('choferManual').value : sel;
-            
-            const b = document.getElementById('btnBuscar');
-            b.innerText = "BUSCANDO..."; b.disabled = true;
+            const btn = document.getElementById('btnBuscar');
+            btn.innerHTML = '<span class="spinner"></span>BUSCANDO...';
+            btn.disabled = true;
 
-            // Simulación o llamada real a Apps Script (esto lo conectaremos al final)
-            // Por ahora llamamos a google.script.run si lo subes a GAS o fetch si es externo
-            alert("Buscando en servidor...");
+            try {
+                // Fetch para GET en Apps Script
+                const resp = await fetch(`${WEB_APP_URL}?action=buscarCP&cp=${state.cp}`);
+                const data = await resp.json();
+                
+                if(data.error) throw new Error(data.error);
+                
+                document.getElementById('fechaLabel').innerText = data.fecha;
+                renderList(data.listaClientes);
+                document.getElementById('vistaIngreso').classList.add('hidden');
+                document.getElementById('vistaCarga').classList.remove('hidden');
+            } catch (e) {
+                alert("Error: " + e.message);
+                btn.innerHTML = "CARGAR HOJA DE RUTA";
+                btn.disabled = false;
+            }
         }
 
-        function setNovedad(s) {
-            nav.status = s;
-            document.getElementById('seccionRechazo').style.display = (s === 'ENTREGADO') ? 'none' : 'block';
+        function renderList(clientes) {
+            const cont = document.getElementById('contenedorClientes');
+            cont.innerHTML = clientes.map((c, i) => `
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div class="p-4 flex justify-between items-center bg-slate-50/50">
+                        <div class="max-w-[70%]">
+                            <p class="font-black text-[#1e3a5f] text-sm uppercase leading-tight">${c.nombre}</p>
+                            <p class="text-[10px] text-slate-400 truncate">${c.direccion}</p>
+                        </div>
+                        <button onclick="document.getElementById('docs-${i}').classList.toggle('hidden')" class="bg-[#1e3a5f] text-white text-[10px] px-4 py-2 rounded-full font-black">STATUS</button>
+                    </div>
+                    <div id="docs-${i}" class="hidden p-4 border-t border-slate-50 space-y-3">
+                        ${c.documentos.map(d => `
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-700">${d.numero}</p>
+                                    <p class="text-[9px] font-bold ${d.status === 'PENDIENTE' ? 'text-slate-300' : 'text-emerald-500'} italic">${d.status}</p>
+                                </div>
+                                <button onclick="abrirMod('${d.fila}', '${d.numero}')" class="bg-orange-500 text-white text-[10px] px-4 py-2 rounded-lg font-black ${d.status !== 'PENDIENTE' ? 'opacity-30' : ''}" ${d.status !== 'PENDIENTE' ? 'disabled' : ''}>NOVEDAD</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function abrirMod(fila, factura) {
+            state.current = { fila, factura };
+            document.getElementById('faciLabel').innerText = factura;
+            document.getElementById('modalNovedades').classList.remove('hidden');
+            resetModal();
+        }
+
+        function setNovedad(s, btn) {
+            state.current.status = s;
+            document.querySelectorAll('.btn-nav').forEach(b => b.classList.remove('bg-blue-50', 'border-blue-500'));
+            btn.classList.add('bg-blue-50', 'border-blue-500');
+            document.getElementById('seccionRechazo').classList.toggle('hidden', s === 'ENTREGADO');
+        }
+
+        function checkAudio(v) { document.getElementById('btnGrabar').classList.toggle('hidden', v !== '5- otros motivos'); }
+
+        async function toggleAudio() {
+            if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
+                state.mediaRecorder.stop();
+                document.getElementById('btnGrabar').innerText = "✅ AUDIO GRABADO";
+                return;
+            }
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            state.mediaRecorder = new MediaRecorder(stream);
+            state.chunks = [];
+            state.mediaRecorder.ondataavailable = e => state.chunks.push(e.data);
+            state.mediaRecorder.onstop = () => {
+                const blob = new Blob(state.chunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = () => state.audioB64 = reader.result;
+            };
+            state.mediaRecorder.start();
+            document.getElementById('btnGrabar').innerText = "🛑 PARAR GRABACIÓN";
+        }
+
+        async function enviarFinal() {
+            const foto = document.getElementById('fotoInput').files[0];
+            if(!state.current.status || !foto) return alert("Falta elegir Status o Foto");
+            
+            const btn = document.getElementById('btnFin');
+            btn.innerHTML = '<span class="spinner"></span>GUARDANDO...';
+            btn.disabled = true;
+
+            const reader = new FileReader();
+            reader.readAsDataURL(foto);
+            reader.onloadend = async () => {
+                const payload = {
+                    action: 'guardarNovedad',
+                    info: {
+                        cp: state.cp,
+                        chofer: state.chofer,
+                        fila: state.current.fila,
+                        factura: state.current.factura,
+                        status: state.current.status,
+                        motivo: document.getElementById('motivoSelect').value,
+                        tipoArchivo: state.audioB64 ? 'audio' : 'foto',
+                        archivoB64: state.audioB64 || reader.result
+                    }
+                };
+
+                await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) });
+                alert("Guardado correctamente");
+                location.reload();
+            };
+        }
+
+        function resetModal() {
+            state.audioB64 = null;
+            document.getElementById('seccionRechazo').classList.add('hidden');
+            document.getElementById('btnGrabar').innerText = "🎤 GRABAR EXPLICACIÓN";
+            document.getElementById('fotoInput').value = "";
         }
 
         function cerrarModal() { document.getElementById('modalNovedades').classList.add('hidden'); }

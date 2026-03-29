@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>M2 - Panel de Chofer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .btn-m2 { background: #1e3a5f; transition: all 0.2s; }
+        .btn-m2:active { transform: scale(0.98); }
+        .btn-orange { background: #ef6c00; }
+        .bg-m2 { background: #1e3a5f; }
+    </style>
+</head>
+<body class="bg-slate-50 p-4">
+
+    <div class="text-center mb-6">
+        <img src="../logom2.jpg" alt="M2" class="mx-auto w-32 mb-2">
+        <h1 class="text-xl font-bold text-[#1e3a5f]">Panel de Chofer</h1>
+        <p class="text-xs text-slate-500">M2 Consultoría Digital</p>
+    </div>
+
+    <div id="vistaIngreso" class="bg-white p-6 rounded-xl shadow-md border border-slate-200 space-y-4 max-w-md mx-auto">
+        <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">CARTA DE PORTE</label>
+            <input type="number" id="cpInput" class="w-full p-3 rounded-lg border border-slate-300 outline-none focus:border-blue-900" placeholder="Ingrese Nro CP">
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">CHOFER</label>
+            <select id="choferSelect" class="w-full p-3 rounded-lg border border-slate-300 bg-white" onchange="verificarOtro(this.value)">
+                <option value="" disabled selected>Seleccione...</option>
+                <option value="jose lopez">José López</option>
+                <option value="juan perez">Juan Pérez</option>
+                <option value="alejandro rodriguez">Alejandro Rodríguez</option>
+                <option value="otro">Otro (Manual)</option>
+            </select>
+            <input type="text" id="choferManual" class="hidden mt-2 w-full p-3 rounded-lg border border-orange-300 outline-none" placeholder="Nombre completo">
+        </div>
+        <button onclick="buscarCP()" id="btnBuscar" class="w-full btn-m2 text-white p-4 rounded-lg font-bold shadow-lg">CARGAR HOJA DE RUTA</button>
+    </div>
+
+    <div id="vistaCarga" class="hidden space-y-4 max-w-md mx-auto">
+        <div class="bg-white p-3 rounded-lg shadow-sm border border-blue-100 flex justify-between items-center">
+            <span class="text-xs font-bold text-slate-400">FECHA: <span id="fechaLabel" class="text-blue-900">--/--/--</span></span>
+            <button onclick="location.reload()" class="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500">CAMBIAR CP</button>
+        </div>
+        <div id="contenedorClientes" class="space-y-3"></div>
+    </div>
+
+    <div id="modalNovedades" class="hidden fixed inset-0 bg-black/70 z-50 p-4 flex justify-center items-center backdrop-blur-sm">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl space-y-4">
+            <h3 class="text-lg font-bold text-[#1e3a5f]">Novedad: <span id="faciLabel"></span></h3>
+            
+            <div class="space-y-2">
+                <button onclick="setNovedad('ENTREGADO')" class="w-full p-3 rounded-lg border-2 border-emerald-100 bg-emerald-50 text-emerald-700 font-bold text-left">A- ENTREGADO</button>
+                <button onclick="setNovedad('RECHAZO PARCIAL')" class="w-full p-3 rounded-lg border-2 border-amber-100 bg-amber-50 text-amber-700 font-bold text-left">B- RECHAZO PARCIAL</button>
+                <button onclick="setNovedad('RECHAZO TOTAL')" class="w-full p-3 rounded-lg border-2 border-red-100 bg-red-50 text-red-700 font-bold text-left">C- RECHAZO TOTAL</button>
+            </div>
+
+            <div id="seccionRechazo" class="hidden space-y-3 border-t pt-4">
+                <select id="motivoSelect" class="w-full p-3 rounded-lg border border-slate-300" onchange="verificarAudio(this.value)">
+                    <option value="" disabled selected>Motivo del rechazo...</option>
+                    <option value="1- cliente cerrado">1- cliente cerrado</option>
+                    <option value="2- diferencia de precio">2- diferencia de precio</option>
+                    <option value="3- pedido duplicado">3- pedido duplicado</option>
+                    <option value="4- no pedido">4- no pedido</option>
+                    <option value="5- otros motivos">5- otros motivos</option>
+                </select>
+                <button id="btnGrabar" onclick="toggleAudio()" class="hidden w-full bg-orange-500 text-white p-3 rounded-lg font-bold">🎤 GRABAR AUDIO</button>
+            </div>
+
+            <div class="border-t pt-4">
+                <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Foto de FC o RTO</label>
+                <input type="file" id="fotoInput" accept="image/*" capture="camera" class="text-xs">
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="cerrarModal()" class="flex-1 p-3 bg-slate-100 rounded-lg font-bold text-slate-500">VOLVER</button>
+                <button onclick="enviarFinal()" id="btnFin" class="flex-1 p-3 btn-m2 text-white rounded-lg font-bold">GUARDAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- COPIAR AQUÍ LA URL DE TU APPS SCRIPT ---
+        const WEB_APP_URL = "TU_URL_DE_APPS_SCRIPT"; 
+
+        let nroCP = "";
+        let chofer = "";
+        let nav = { fila: null, factura: null, status: null, audio: null };
+
+        function verificarOtro(v) { document.getElementById('choferManual').style.display = (v === 'otro') ? 'block' : 'none'; }
+        function verificarAudio(v) { document.getElementById('btnGrabar').style.display = (v === '5- otros motivos') ? 'block' : 'none'; }
+
+        async function buscarCP() {
+            nroCP = document.getElementById('cpInput').value;
+            const sel = document.getElementById('choferSelect').value;
+            if(!nroCP || !sel) return alert("Complete los datos");
+            
+            chofer = (sel === 'otro') ? document.getElementById('choferManual').value : sel;
+            
+            const b = document.getElementById('btnBuscar');
+            b.innerText = "BUSCANDO..."; b.disabled = true;
+
+            // Simulación o llamada real a Apps Script (esto lo conectaremos al final)
+            // Por ahora llamamos a google.script.run si lo subes a GAS o fetch si es externo
+            alert("Buscando en servidor...");
+        }
+
+        function setNovedad(s) {
+            nav.status = s;
+            document.getElementById('seccionRechazo').style.display = (s === 'ENTREGADO') ? 'none' : 'block';
+        }
+
+        function cerrarModal() { document.getElementById('modalNovedades').classList.add('hidden'); }
+    </script>
+</body>
+</html>

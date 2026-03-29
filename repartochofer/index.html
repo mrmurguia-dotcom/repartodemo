@@ -98,7 +98,7 @@
     </div>
 
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxXr0Q-jP2dfamFAU6U10nNNctjny7Sl7WkqVr251Ks6RrnLdXWPFylNFOykE0YmKfF/exec"; // REEMPLAZAR CON TU URL
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxXr0Q-jP2dfamFAU6U10nNNctjny7Sl7WkqVr251Ks6RrnLdXWPFylNFOykE0YmKfF/exec"; 
         
         let appData = { lista: [], cp: "", chofer: "", current: {} };
         let mediaRecorder;
@@ -158,7 +158,6 @@
 
         function renderizarLista() {
             const cont = document.getElementById('contenedorClientes');
-            // FILTRO: Solo mostramos clientes que tengan al menos un documento PENDIENTE
             const clientesPendientes = appData.lista.filter(c => c.documentos.some(d => d.status === 'PENDIENTE'));
             
             if (clientesPendientes.length === 0 && appData.lista.length > 0) {
@@ -169,7 +168,6 @@
             }
 
             cont.innerHTML = clientesPendientes.map((c, i) => {
-                // Buscamos el índice original en appData.lista para no perder la referencia
                 const originalIdx = appData.lista.findIndex(cli => cli.nombre === c.nombre);
                 return `
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-3">
@@ -224,7 +222,6 @@
             else { seccion.classList.add('hidden'); appData.current.audio = null; }
         }
 
-        // LÓGICA DE AUDIO
         async function toggleGrabacion() {
             const btn = document.getElementById('btnAudio');
             const status = document.getElementById('audioStatus');
@@ -254,13 +251,30 @@
             }
         }
 
+        // --- COMPRESIÓN DE FOTO PARA EVITAR TILDES ---
         function previewFoto(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = e => {
-                    document.getElementById('imgPreview').src = e.target.result;
-                    document.getElementById('previewContainer').classList.remove('hidden');
-                    appData.current.foto = e.target.result;
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800; // Ancho máximo razonable para un reporte
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        // Comprimimos la calidad al 70%
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        
+                        document.getElementById('imgPreview').src = dataUrl;
+                        document.getElementById('previewContainer').classList.remove('hidden');
+                        appData.current.foto = dataUrl;
+                    };
                 };
                 reader.readAsDataURL(input.files[0]);
             }
@@ -297,16 +311,23 @@
                 }
             };
 
-            // 1. Actualizamos el estado local ANTES de mandar (para que la UI responda rápido)
+            // Respuesta visual inmediata
             actualizarEstadoLocal();
             
             try {
-                // Mandamos el POST (sin esperar respuesta por el no-cors)
-                fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-            } catch (e) { console.log("Enviado."); }
+                // Fetch optimizado: no esperamos la respuesta pesada de Google
+                fetch(WEB_APP_URL, { 
+                    method: 'POST', 
+                    mode: 'no-cors', 
+                    body: JSON.stringify(payload) 
+                });
+            } catch (e) { console.log("Post enviado."); }
             
-            cerrarModal();
-            renderizarLista();
+            // Cerramos todo de una vez
+            setTimeout(() => {
+                cerrarModal();
+                renderizarLista();
+            }, 300);
         }
 
         function actualizarEstadoLocal() {

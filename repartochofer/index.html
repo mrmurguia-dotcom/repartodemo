@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -11,7 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/jpeg" href="../logom2.jpg">
     <meta name="theme-color" content="#1e3a5f">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,13 +30,16 @@
             <h1 class="text-xl font-black text-[#1e3a5f]">Ingreso de Chofer</h1>
         </div>
         <input type="number" id="cpInput" class="w-full p-4 rounded-xl border-2 border-slate-100 outline-none focus:border-blue-900 bg-slate-50" placeholder="Nro Carta de Porte (Ej: 10186)">
-        <select id="choferSelect" class="w-full p-4 rounded-xl border-2 border-slate-100 bg-white">
+        
+        <select id="choferSelect" onchange="verificarChofer(this)" class="w-full p-4 rounded-xl border-2 border-slate-100 bg-white outline-none focus:border-blue-900">
             <option value="" disabled selected>Seleccione Chofer...</option>
             <option value="JOSE LOPEZ">JOSE LOPEZ</option>
             <option value="JUAN PEREZ">JUAN PEREZ</option>
             <option value="ALEJANDRO RODRIGUEZ">ALEJANDRO RODRIGUEZ</option>
             <option value="otro">OTRO...</option>
         </select>
+        <input type="text" id="choferOtroInput" class="hidden w-full p-4 rounded-xl border-2 border-slate-100 outline-none focus:border-blue-900 bg-slate-50 uppercase" placeholder="Escriba el nombre del chofer...">
+
         <button onclick="buscarCP()" id="btnBuscar" class="w-full btn-m2 text-white p-4 rounded-xl font-black shadow-lg shadow-blue-900/20 active:scale-95">CARGAR RECORRIDO</button>
     </div>
 
@@ -53,7 +55,7 @@
     </div>
 
     <div id="modalNovedades" class="hidden fixed inset-0 bg-black/80 z-50 p-4 flex justify-center items-center backdrop-blur-sm">
-        <div class="bg-white p-6 rounded-3xl w-full max-w-sm space-y-5 shadow-2xl animate-in zoom-in duration-200">
+        <div class="bg-white p-6 rounded-3xl w-full max-w-sm max-h-[90vh] overflow-y-auto space-y-5 shadow-2xl animate-in zoom-in duration-200">
             <div class="flex justify-between border-b pb-3 items-start">
                 <h3 class="text-lg font-black text-[#1e3a5f] leading-tight">FACTURA:<br><span id="faciLabel" class="text-orange-500 text-base"></span></h3>
                 <button onclick="cerrarModal()" class="text-slate-400 text-3xl hover:text-red-500 leading-none">&times;</button>
@@ -77,11 +79,11 @@
                 </select>
                 
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Foto (Obligatoria)</label>
-                <button onclick="document.getElementById('fotoInput').click()" class="w-full p-4 bg-blue-50 text-blue-700 rounded-xl font-bold border-2 border-blue-200 active:scale-95 flex justify-center items-center gap-2">📷 SACAR FOTO COMPROBANTE</button>
+                <button onclick="document.getElementById('fotoInput').click()" class="w-full p-4 bg-blue-50 text-blue-700 rounded-xl font-bold border-2 border-blue-200 active:scale-95 flex justify-center items-center gap-2">📷 SACAR FOTO</button>
                 <input type="file" id="fotoInput" accept="image/*" capture="camera" class="hidden" onchange="previewFoto(this)">
                 
-                <div id="previewContainer" class="hidden relative mt-2 border-4 border-blue-100 rounded-xl overflow-hidden">
-                    <img id="imgPreview" class="w-full h-auto object-cover">
+                <div id="previewContainer" class="hidden relative mt-2 border-4 border-blue-100 rounded-xl overflow-hidden flex justify-center bg-black/5">
+                    <img id="imgPreview" class="max-h-40 w-auto object-contain">
                     <button onclick="borrarFoto()" class="absolute top-2 right-2 bg-red-600 text-white rounded-full w-8 h-8 font-bold text-xl flex items-center justify-center shadow-lg">&times;</button>
                 </div>
             </div>
@@ -91,15 +93,57 @@
     </div>
 
     <script>
-        // --- PEGAR ACÁ TU URL DE APPS SCRIPT ---
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwyO_NRQW-f9rEGGhLFhU9naB8IjvDlEfWOEeiyE8Wd2txdZU63KxDe5jOswdV7aoaG/exec"; 
         
         let appData = { lista: [], cp: "", chofer: "", current: {} };
 
+        // SOLUCIÓN 5: Recuperar sesión al cargar la página
+        window.onload = () => {
+            const sesionGuardada = localStorage.getItem('m2_sesion_recorrido');
+            if (sesionGuardada) {
+                const data = JSON.parse(sesionGuardada);
+                document.getElementById('cpInput').value = data.cp;
+                
+                // Setear el select del chofer
+                const select = document.getElementById('choferSelect');
+                if (Array.from(select.options).some(opt => opt.value === data.choferVal)) {
+                    select.value = data.choferVal;
+                } else {
+                    select.value = 'otro';
+                }
+                
+                verificarChofer(select);
+                if (select.value === 'otro') {
+                    document.getElementById('choferOtroInput').value = data.choferNombre;
+                }
+                
+                // Buscar automáticamente
+                buscarCP();
+            }
+        };
+
+        function verificarChofer(select) {
+            const input = document.getElementById('choferOtroInput');
+            if (select.value === 'otro') {
+                input.classList.remove('hidden');
+            } else {
+                input.classList.add('hidden');
+                input.value = "";
+            }
+        }
+
         async function buscarCP() {
             appData.cp = document.getElementById('cpInput').value;
-            appData.chofer = document.getElementById('choferSelect').value;
-            if(!appData.cp || !appData.chofer) return alert("Por favor complete Carta de Porte y Chofer");
+            
+            // Obtener nombre del chofer real
+            const selectVal = document.getElementById('choferSelect').value;
+            if (selectVal === 'otro') {
+                appData.chofer = document.getElementById('choferOtroInput').value.toUpperCase();
+            } else {
+                appData.chofer = selectVal;
+            }
+
+            if(!appData.cp || !appData.chofer) return alert("Por favor complete Carta de Porte y Chofer.");
             
             const btn = document.getElementById('btnBuscar');
             btn.innerHTML = '<span class="spinner"></span> CARGANDO...';
@@ -113,6 +157,14 @@
 
                 appData.lista = data.listaClientes;
                 document.getElementById('fechaLabel').innerText = data.fecha;
+                
+                // Guardar la sesión localmente
+                localStorage.setItem('m2_sesion_recorrido', JSON.stringify({
+                    cp: appData.cp, 
+                    choferVal: selectVal, 
+                    choferNombre: appData.chofer
+                }));
+
                 renderizarLista();
                 document.getElementById('vistaIngreso').classList.add('hidden');
                 document.getElementById('vistaCarga').classList.remove('hidden');
@@ -126,7 +178,6 @@
 
         function renderizarLista() {
             const cont = document.getElementById('contenedorClientes');
-            // Filtramos solo clientes que tengan al menos una factura PENDIENTE
             const clientesPendientes = appData.lista.filter(c => c.documentos.some(d => d.status === 'PENDIENTE'));
             
             if (clientesPendientes.length === 0 && appData.lista.length > 0) {
@@ -171,28 +222,23 @@
             const cliente = appData.lista[appData.current.indexCliente];
             const facturasPendientes = cliente.documentos.filter(d => d.status === 'PENDIENTE');
 
-            // Si hay más de una, preguntamos
             if (facturasPendientes.length > 1) {
                 if (confirm(`Este cliente tiene ${facturasPendientes.length} facturas pendientes.\n\n¿Querés marcar TODAS como ENTREGADAS?`)) {
-                    appData.current.multiple = facturasPendientes.map(f => f.fila);
+                    // Mapeamos a Integer por las dudas para el script de Google
+                    appData.current.multiple = facturasPendientes.map(f => parseInt(f.fila)); 
                 } else {
-                    appData.current.multiple = null; // Solo la actual
+                    appData.current.multiple = null;
                 }
             }
             
             appData.current.status = 'ENTREGADO';
-            
-            // Para entregado no hace falta foto, mandamos directo
             enviarFinal();
         }
 
         function setRechazo(tipo, btn) {
             appData.current.status = tipo;
-            
-            // Estilos de botones
             document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('ring-2', 'ring-blue-500', 'bg-slate-50'));
             btn.classList.add('ring-2', 'ring-blue-500', 'bg-slate-50');
-            
             document.getElementById('seccionNovedad').classList.remove('hidden');
         }
 
@@ -215,7 +261,6 @@
         }
 
         async function enviarFinal() {
-            // Validaciones si es rechazo
             if (appData.current.status !== 'ENTREGADO') {
                 if (!document.getElementById('motivoSelect').value) return alert("Falta seleccionar el motivo del rechazo.");
                 if (!appData.current.foto) return alert("Es OBLIGATORIO sacar una foto al comprobante con la novedad.");
@@ -230,23 +275,21 @@
                 info: {
                     cp: appData.cp, 
                     chofer: appData.chofer,
-                    fila: appData.current.fila,
+                    fila: parseInt(appData.current.fila),
                     factura: appData.current.factura,
                     status: appData.current.status,
                     motivo: document.getElementById('motivoSelect').value,
-                    archivoB64: appData.current.foto, // Será null si es ENTREGADO
-                    filasMultiple: appData.current.multiple // Será array si dio SÍ a todo, o null
+                    archivoB64: appData.current.foto,
+                    filasMultiple: appData.current.multiple 
                 }
             };
 
-            // Simulación de guardado local para "desaparecer" clientes rápido en la pantalla
             actualizarEstadoLocal();
             
             try {
-                // Enviamos sin esperar respuesta legible por temas de CORS
                 await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
             } catch (e) {
-                console.log("Enviado (el error de CORS es normal acá).");
+                console.log("Enviado.");
             }
             
             cerrarModal();
@@ -256,30 +299,24 @@
         function actualizarEstadoLocal() {
             const cliente = appData.lista[appData.current.indexCliente];
             if (appData.current.multiple) {
-                // Marcó SÍ a todo
                 cliente.documentos.forEach(d => d.status = appData.current.status);
             } else {
-                // Solo esta factura
                 const doc = cliente.documentos.find(d => d.fila == appData.current.fila);
                 if (doc) doc.status = appData.current.status;
             }
         }
 
-        // --- NUEVA FUNCIÓN PARA CERRAR SESIÓN SIN RECARGAR ---
         function cerrarSesion() {
             if(confirm("¿Seguro que deseás salir del recorrido actual?")) {
-                // Limpiamos los datos
-                appData = { lista: [], cp: "", chofer: "", current: {} };
+                localStorage.removeItem('m2_sesion_recorrido'); // Borramos la persistencia
                 
-                // Limpiamos los inputs
+                appData = { lista: [], cp: "", chofer: "", current: {} };
                 document.getElementById('cpInput').value = "";
                 document.getElementById('choferSelect').value = "";
+                verificarChofer(document.getElementById('choferSelect'));
                 
-                // Cambiamos las vistas
                 document.getElementById('vistaCarga').classList.add('hidden');
                 document.getElementById('vistaIngreso').classList.remove('hidden');
-                
-                // Limpiamos el contenedor por si acaso
                 document.getElementById('contenedorClientes').innerHTML = "";
             }
         }

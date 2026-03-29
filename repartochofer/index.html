@@ -4,12 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>M2 - Panel de Chofer</title>
-    <link rel="manifest" href="manifest.json?v=2">
     
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-icon-180x180.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
     <link rel="icon" type="image/jpeg" href="../logom2.jpg">
     <meta name="theme-color" content="#1e3a5f">
     
@@ -20,6 +15,8 @@
         .btn-m2:active { transform: scale(0.98); }
         .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #1e3a5f; border-radius: 50%; width: 18px; height: 18px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .recording { animation: pulse 1.5s infinite; background-color: #ef4444 !important; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body class="bg-slate-100 p-4 md:p-8">
@@ -69,15 +66,23 @@
 
             <div id="seccionNovedad" class="hidden space-y-3 pt-4 border-t border-slate-100">
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Motivo de Rechazo</label>
-                <select id="motivoSelect" class="w-full p-4 rounded-xl border-2 border-slate-100 bg-slate-50 text-sm font-bold outline-none focus:border-blue-500">
+                <select id="motivoSelect" onchange="checkMotivoAudio(this)" class="w-full p-4 rounded-xl border-2 border-slate-100 bg-slate-50 text-sm font-bold outline-none focus:border-blue-500">
                     <option value="" disabled selected>Seleccione motivo...</option>
                     <option value="1- cliente cerrado">1- cliente cerrado</option>
                     <option value="2- diferencia de precio">2- diferencia de precio</option>
                     <option value="3- pedido duplicado">3- pedido duplicado</option>
                     <option value="4- no pedido">4- no pedido</option>
-                    <option value="5- otros motivos">5- otros motivos</option>
+                    <option value="5- otros motivos">5- otros motivos (requiere audio)</option>
                 </select>
                 
+                <div id="seccionAudio" class="hidden bg-orange-50 p-4 rounded-xl border border-orange-200 space-y-2">
+                    <label class="block text-[10px] font-black text-orange-600 uppercase">Explicación por Voz</label>
+                    <button id="btnAudio" onclick="toggleGrabacion()" class="w-full p-3 bg-orange-500 text-white rounded-lg font-bold flex justify-center items-center gap-2">
+                        <span id="audioIcon">🎤</span> <span id="audioTexto">GRABAR EXPLICACIÓN</span>
+                    </button>
+                    <p id="audioStatus" class="text-[9px] text-center font-bold text-orange-400">Presioná para empezar a grabar</p>
+                </div>
+
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Foto (Obligatoria)</label>
                 <button onclick="document.getElementById('fotoInput').click()" class="w-full p-4 bg-blue-50 text-blue-700 rounded-xl font-bold border-2 border-blue-200 active:scale-95 flex justify-center items-center gap-2">📷 SACAR FOTO</button>
                 <input type="file" id="fotoInput" accept="image/*" capture="camera" class="hidden" onchange="previewFoto(this)">
@@ -93,55 +98,35 @@
     </div>
 
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxXr0Q-jP2dfamFAU6U10nNNctjny7Sl7WkqVr251Ks6RrnLdXWPFylNFOykE0YmKfF/exec"; 
+        const WEB_APP_URL = "TU_URL_DE_APPS_SCRIPT"; // REEMPLAZAR CON TU URL
         
         let appData = { lista: [], cp: "", chofer: "", current: {} };
+        let mediaRecorder;
+        let audioChunks = [];
 
-        // SOLUCIÓN 5: Recuperar sesión al cargar la página
         window.onload = () => {
             const sesionGuardada = localStorage.getItem('m2_sesion_recorrido');
             if (sesionGuardada) {
                 const data = JSON.parse(sesionGuardada);
                 document.getElementById('cpInput').value = data.cp;
-                
-                // Setear el select del chofer
                 const select = document.getElementById('choferSelect');
-                if (Array.from(select.options).some(opt => opt.value === data.choferVal)) {
-                    select.value = data.choferVal;
-                } else {
-                    select.value = 'otro';
-                }
-                
+                select.value = Array.from(select.options).some(opt => opt.value === data.choferVal) ? data.choferVal : 'otro';
                 verificarChofer(select);
-                if (select.value === 'otro') {
-                    document.getElementById('choferOtroInput').value = data.choferNombre;
-                }
-                
-                // Buscar automáticamente
+                if (select.value === 'otro') document.getElementById('choferOtroInput').value = data.choferNombre;
                 buscarCP();
             }
         };
 
         function verificarChofer(select) {
             const input = document.getElementById('choferOtroInput');
-            if (select.value === 'otro') {
-                input.classList.remove('hidden');
-            } else {
-                input.classList.add('hidden');
-                input.value = "";
-            }
+            if (select.value === 'otro') input.classList.remove('hidden');
+            else { input.classList.add('hidden'); input.value = ""; }
         }
 
         async function buscarCP() {
             appData.cp = document.getElementById('cpInput').value;
-            
-            // Obtener nombre del chofer real
             const selectVal = document.getElementById('choferSelect').value;
-            if (selectVal === 'otro') {
-                appData.chofer = document.getElementById('choferOtroInput').value.toUpperCase();
-            } else {
-                appData.chofer = selectVal;
-            }
+            appData.chofer = (selectVal === 'otro') ? document.getElementById('choferOtroInput').value.toUpperCase() : selectVal;
 
             if(!appData.cp || !appData.chofer) return alert("Por favor complete Carta de Porte y Chofer.");
             
@@ -152,67 +137,63 @@
             try {
                 const resp = await fetch(`${WEB_APP_URL}?action=buscarCP&cp=${appData.cp}`);
                 const data = await resp.json();
-                
                 if(data.error) throw new Error(data.error);
 
                 appData.lista = data.listaClientes;
                 document.getElementById('fechaLabel').innerText = data.fecha;
                 
-                // Guardar la sesión localmente
                 localStorage.setItem('m2_sesion_recorrido', JSON.stringify({
-                    cp: appData.cp, 
-                    choferVal: selectVal, 
-                    choferNombre: appData.chofer
+                    cp: appData.cp, choferVal: selectVal, choferNombre: appData.chofer
                 }));
 
                 renderizarLista();
                 document.getElementById('vistaIngreso').classList.add('hidden');
                 document.getElementById('vistaCarga').classList.remove('hidden');
             } catch (e) { 
-                alert("Error: No se encontró la Carta de Porte o hubo un problema de conexión."); 
+                alert("Error: No se encontró la Carta de Porte."); 
             } finally {
-                btn.innerHTML = "CARGAR RECORRIDO"; 
-                btn.disabled = false;
+                btn.innerHTML = "CARGAR RECORRIDO"; btn.disabled = false;
             }
         }
 
         function renderizarLista() {
             const cont = document.getElementById('contenedorClientes');
+            // FILTRO: Solo mostramos clientes que tengan al menos un documento PENDIENTE
             const clientesPendientes = appData.lista.filter(c => c.documentos.some(d => d.status === 'PENDIENTE'));
             
             if (clientesPendientes.length === 0 && appData.lista.length > 0) {
-                cont.innerHTML = `
-                    <div class="bg-emerald-500 text-white p-8 rounded-3xl text-center shadow-2xl mt-8">
-                        <p class="text-5xl mb-4">🎉</p>
-                        <p class="font-black text-2xl uppercase tracking-tighter leading-tight">¡Recorrido<br>Finalizado!</p>
-                        <p class="text-sm opacity-90 mt-3 font-medium">Excelente trabajo. Podés cerrar sesión.</p>
-                    </div>`;
+                cont.innerHTML = `<div class="bg-emerald-500 text-white p-8 rounded-3xl text-center shadow-2xl mt-8">
+                    <p class="text-5xl mb-4">🎉</p><p class="font-black text-2xl uppercase">¡Recorrido Finalizado!</p>
+                </div>`;
                 return;
             }
 
-            cont.innerHTML = clientesPendientes.map((c, i) => `
-                <div id="cliente-card-${i}" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-3">
+            cont.innerHTML = clientesPendientes.map((c, i) => {
+                // Buscamos el índice original en appData.lista para no perder la referencia
+                const originalIdx = appData.lista.findIndex(cli => cli.nombre === c.nombre);
+                return `
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-3">
                     <div class="p-4 flex justify-between items-center bg-slate-50 border-b border-slate-100">
                         <div class="max-w-[75%]">
                             <p class="font-black text-[#1e3a5f] text-sm uppercase leading-tight">${c.nombre}</p>
                             <p class="text-[10px] text-slate-500 font-bold mt-1 truncate">${c.direccion}</p>
                         </div>
-                        <button onclick="toggleDocs(${i})" class="bg-[#1e3a5f] text-white text-[10px] px-3 py-2 rounded-lg font-black shadow-sm active:scale-95">VER DOCS</button>
+                        <button onclick="toggleDocs(${originalIdx})" class="bg-[#1e3a5f] text-white text-[10px] px-3 py-2 rounded-lg font-black active:scale-95">VER DOCS</button>
                     </div>
-                    <div id="docs-${i}" class="p-3 bg-white space-y-2 hidden">
+                    <div id="docs-${originalIdx}" class="p-3 bg-white space-y-2 hidden">
                         ${c.documentos.filter(d => d.status === 'PENDIENTE').map(d => `
                             <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <span class="text-xs font-bold text-slate-700">${d.numero}</span>
-                                <button onclick="abrirModal('${d.fila}', '${d.numero}', ${i})" class="bg-orange-500 text-white text-[10px] px-4 py-2 rounded-lg font-black active:scale-95 shadow-sm">NOVEDAD</button>
+                                <button onclick="abrirModal('${d.fila}', '${d.numero}', ${originalIdx})" class="bg-orange-500 text-white text-[10px] px-4 py-2 rounded-lg font-black active:scale-95">NOVEDAD</button>
                             </div>
                         `).join('')}
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
         function abrirModal(fila, factura, indexCliente) {
-            appData.current = { fila, factura, indexCliente, status: '', foto: null, multiple: null };
+            appData.current = { fila, factura, indexCliente, status: '', foto: null, audio: null, multiple: null };
             document.getElementById('faciLabel').innerText = factura;
             document.getElementById('modalNovedades').classList.remove('hidden');
             resetModal();
@@ -220,17 +201,12 @@
 
         function confirmarEntregado() {
             const cliente = appData.lista[appData.current.indexCliente];
-            const facturasPendientes = cliente.documentos.filter(d => d.status === 'PENDIENTE');
-
-            if (facturasPendientes.length > 1) {
-                if (confirm(`Este cliente tiene ${facturasPendientes.length} facturas pendientes.\n\n¿Querés marcar TODAS como ENTREGADAS?`)) {
-                    // Mapeamos a Integer por las dudas para el script de Google
-                    appData.current.multiple = facturasPendientes.map(f => parseInt(f.fila)); 
-                } else {
-                    appData.current.multiple = null;
+            const pendientes = cliente.documentos.filter(d => d.status === 'PENDIENTE');
+            if (pendientes.length > 1) {
+                if (confirm(`¿Querés marcar las ${pendientes.length} facturas como ENTREGADAS?`)) {
+                    appData.current.multiple = pendientes.map(f => parseInt(f.fila)); 
                 }
             }
-            
             appData.current.status = 'ENTREGADO';
             enviarFinal();
         }
@@ -240,6 +216,42 @@
             document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('ring-2', 'ring-blue-500', 'bg-slate-50'));
             btn.classList.add('ring-2', 'ring-blue-500', 'bg-slate-50');
             document.getElementById('seccionNovedad').classList.remove('hidden');
+        }
+
+        function checkMotivoAudio(select) {
+            const seccion = document.getElementById('seccionAudio');
+            if (select.value.includes("5-")) seccion.classList.remove('hidden');
+            else { seccion.classList.add('hidden'); appData.current.audio = null; }
+        }
+
+        // LÓGICA DE AUDIO
+        async function toggleGrabacion() {
+            const btn = document.getElementById('btnAudio');
+            const status = document.getElementById('audioStatus');
+            
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const reader = new FileReader();
+                        reader.readAsDataURL(blob);
+                        reader.onloadend = () => { appData.current.audio = reader.result; };
+                        status.innerText = "✅ AUDIO GRABADO";
+                        btn.classList.remove('recording');
+                        document.getElementById('audioTexto').innerText = "VOLVER A GRABAR";
+                    };
+                    mediaRecorder.start();
+                    btn.classList.add('recording');
+                    document.getElementById('audioTexto').innerText = "DETENER";
+                    status.innerText = "GRABANDO... HABLA AHORA";
+                } catch (err) { alert("Error al acceder al micrófono."); }
+            } else {
+                mediaRecorder.stop();
+            }
         }
 
         function previewFoto(input) {
@@ -261,9 +273,11 @@
         }
 
         async function enviarFinal() {
+            const motivo = document.getElementById('motivoSelect').value;
             if (appData.current.status !== 'ENTREGADO') {
-                if (!document.getElementById('motivoSelect').value) return alert("Falta seleccionar el motivo del rechazo.");
-                if (!appData.current.foto) return alert("Es OBLIGATORIO sacar una foto al comprobante con la novedad.");
+                if (!motivo) return alert("Falta seleccionar el motivo.");
+                if (motivo.includes("5-") && !appData.current.audio) return alert("Por favor graba un audio explicando el motivo.");
+                if (!appData.current.foto) return alert("Es OBLIGATORIO sacar una foto.");
             }
 
             const btn = document.getElementById('btnFin');
@@ -273,24 +287,23 @@
             const payload = {
                 action: 'guardarNovedad',
                 info: {
-                    cp: appData.cp, 
-                    chofer: appData.chofer,
+                    cp: appData.cp, chofer: appData.chofer,
                     fila: parseInt(appData.current.fila),
-                    factura: appData.current.factura,
                     status: appData.current.status,
-                    motivo: document.getElementById('motivoSelect').value,
+                    motivo: motivo,
                     archivoB64: appData.current.foto,
+                    audioB64: appData.current.audio,
                     filasMultiple: appData.current.multiple 
                 }
             };
 
+            // 1. Actualizamos el estado local ANTES de mandar (para que la UI responda rápido)
             actualizarEstadoLocal();
             
             try {
-                await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-            } catch (e) {
-                console.log("Enviado.");
-            }
+                // Mandamos el POST (sin esperar respuesta por el no-cors)
+                fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+            } catch (e) { console.log("Enviado."); }
             
             cerrarModal();
             renderizarLista();
@@ -299,7 +312,7 @@
         function actualizarEstadoLocal() {
             const cliente = appData.lista[appData.current.indexCliente];
             if (appData.current.multiple) {
-                cliente.documentos.forEach(d => d.status = appData.current.status);
+                cliente.documentos.forEach(d => { if(appData.current.multiple.includes(parseInt(d.fila))) d.status = appData.current.status; });
             } else {
                 const doc = cliente.documentos.find(d => d.fila == appData.current.fila);
                 if (doc) doc.status = appData.current.status;
@@ -307,28 +320,20 @@
         }
 
         function cerrarSesion() {
-            if(confirm("¿Seguro que deseás salir del recorrido actual?")) {
-                localStorage.removeItem('m2_sesion_recorrido'); // Borramos la persistencia
-                
-                appData = { lista: [], cp: "", chofer: "", current: {} };
-                document.getElementById('cpInput').value = "";
-                document.getElementById('choferSelect').value = "";
-                verificarChofer(document.getElementById('choferSelect'));
-                
-                document.getElementById('vistaCarga').classList.add('hidden');
-                document.getElementById('vistaIngreso').classList.remove('hidden');
-                document.getElementById('contenedorClientes').innerHTML = "";
+            if(confirm("¿Cerrar recorrido?")) {
+                localStorage.removeItem('m2_sesion_recorrido');
+                location.reload();
             }
         }
 
         function resetModal() {
             document.getElementById('seccionNovedad').classList.add('hidden');
+            document.getElementById('seccionAudio').classList.add('hidden');
+            document.getElementById('audioStatus').innerText = "Presioná para empezar a grabar";
+            document.getElementById('audioTexto').innerText = "GRABAR EXPLICACIÓN";
             document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('ring-2', 'ring-blue-500', 'bg-slate-50'));
             document.getElementById('motivoSelect').value = "";
             borrarFoto();
-            const btn = document.getElementById('btnFin');
-            btn.innerHTML = "GUARDAR CAMBIOS";
-            btn.disabled = false;
         }
 
         function toggleDocs(i) { document.getElementById(`docs-${i}`).classList.toggle('hidden'); }

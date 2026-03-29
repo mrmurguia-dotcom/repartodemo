@@ -7,61 +7,110 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
   <style>
-    /* Estilos basados en tu paleta de colores */
     body { font-family: 'Roboto', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    
+    /* Header y Filtros */
+    .header { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     h1 { margin: 0; color: #1e3a5f; font-size: 1.5rem; }
     
+    .filters-container { display: flex; gap: 15px; flex-wrap: wrap; background: #f8f9fa; padding: 15px; border-radius: 8px; align-items: center; }
+    .filter-item { display: flex; flex-direction: column; gap: 5px; }
+    .filter-item label { font-size: 0.8rem; font-weight: bold; color: #555; }
+    .filter-item input, .filter-item select { padding: 8px; border: 1px solid #ddd; border-radius: 5px; outline: none; }
+
     .btn-refresh { background: #1e3a5f; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
     .btn-refresh:hover { background: #2a528a; }
 
-    .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    /* Grid y Cards */
+    .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+    .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.2s; border-top: 5px solid #1e3a5f; }
     
-    .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.2s; }
-    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; }
+    .card-header { border-bottom: 1px solid #dee2e6; padding-bottom: 10px; margin-bottom: 15px; }
+    .cp-row { display: flex; justify-content: space-between; align-items: center; }
     .cp-title { font-size: 1.2rem; font-weight: bold; color: #1e3a5f; }
+    .status-badge { font-size: 0.7rem; padding: 4px 8px; border-radius: 12px; font-weight: bold; text-transform: uppercase; }
+    .status-en-recorrido { background: #fff3cd; color: #856404; }
+    .status-finalizado { background: #d4edda; color: #155724; }
     
-    .card-body { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-    .chart-container { width: 100px; height: 100px; }
+    .chofer-info { font-size: 0.85rem; color: #666; margin-top: 5px; font-weight: 500; }
+    
+    .card-body { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 10px 0; }
+    .chart-container { width: 90px; height: 90px; }
 
-    /* Colores solicitados para el detalle */
     .info-detalles { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; }
-    .info-detalles li { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
+    .info-detalles li { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; font-weight: bold; list-style: none; }
     
-    .btn-sheet { display: block; width: 100%; text-align: center; background: #dee2e6; color: black; text-decoration: none; padding: 10px; margin-top: 15px; border-radius: 8px; font-weight: bold; }
+    .btn-sheet { display: block; width: 100%; text-align: center; background: #dee2e6; color: black; text-decoration: none; padding: 10px; margin-top: 15px; border-radius: 8px; font-weight: bold; font-size: 0.9rem; }
+    .btn-sheet:hover { background: #ced4da; }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>📊 Panel Central M2</h1>
-  <button class="btn-refresh" onclick="cargarDashboard()">🔄 Actualizar Datos</button>
+  <div class="header-top">
+    <h1>📊 Panel Central M2</h1>
+    <button class="btn-refresh" onclick="cargarDashboard()">🔄 Actualizar Datos</button>
+  </div>
+  
+  <div class="filters-container">
+    <div class="filter-item">
+      <label>📅 Fecha de Reparto</label>
+      <input type="text" id="filtroFecha" placeholder="Ej: 29/03/2026" onkeyup="filtrar()">
+    </div>
+    <div class="filter-item">
+      <label>🚚 Estado del Recorrido</label>
+      <select id="filtroEstado" onchange="filtrar()">
+        <option value="TODOS">Todos los estados</option>
+        <option value="EN RECORRIDO">En Recorrido</option>
+        <option value="FINALIZADO">Finalizado</option>
+      </select>
+    </div>
+  </div>
 </div>
 
 <div id="grid" class="grid-container">
-  <div style="grid-column: 1/-1; text-align: center;">Conectando con Google Sheets...</div>
+  <div style="grid-column: 1/-1; text-align: center; padding: 40px;">Conectando con Google Sheets...</div>
 </div>
 
 <script>
-  // REEMPLAZA ESTA URL CON LA DE TU IMPLEMENTACIÓN DE APPS SCRIPT
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxXr0Q-jP2dfamFAU6U10nNNctjny7Sl7WkqVr251Ks6RrnLdXWPFylNFOykE0YmKfF/exec";
+  let datosGlobales = [];
 
   async function cargarDashboard() {
     const grid = document.getElementById('grid');
-    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">Cargando información actualizada...</div>';
+    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;">Cargando información actualizada...</div>';
     
     try {
       const response = await fetch(`${WEB_APP_URL}?action=getDashboard`);
-      const resumen = await response.json();
-      renderizar(resumen);
+      datosGlobales = await response.json();
+      renderizar(datosGlobales);
     } catch (err) {
-      grid.innerHTML = `<div style="color:red">Error de conexión: ${err.message}</div>`;
+      grid.innerHTML = `<div style="color:red; grid-column: 1/-1; text-align: center;">Error de conexión: ${err.message}</div>`;
     }
+  }
+
+  function filtrar() {
+    const textoFecha = document.getElementById('filtroFecha').value.toLowerCase();
+    const estadoSeleccionado = document.getElementById('filtroEstado').value;
+
+    const datosFiltrados = datosGlobales.filter(item => {
+      const coincideFecha = item.fecha.toLowerCase().includes(textoFecha);
+      const coincideEstado = estadoSeleccionado === "TODOS" || item.estadoRuta === estadoSeleccionado;
+      return coincideFecha && coincideEstado;
+    });
+
+    renderizar(datosFiltrados);
   }
 
   function renderizar(resumen) {
     const grid = document.getElementById('grid');
     grid.innerHTML = '';
+
+    if (resumen.length === 0) {
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;">No se encontraron resultados para los filtros aplicados.</div>';
+      return;
+    }
 
     resumen.forEach((item, index) => {
       const card = document.createElement('div');
@@ -69,24 +118,29 @@
       
       const s = item.stats;
       const progreso = Math.round(((item.total - s.PENDIENTE) / item.total) * 100) || 0;
+      const claseEstado = item.estadoRuta === "FINALIZADO" ? "status-finalizado" : "status-en-recorrido";
 
       card.innerHTML = `
         <div class="card-header">
-          <span class="cp-title">CP ${item.cp}</span>
-          <span style="font-size:0.8rem">${item.estadoRuta}</span>
+          <div class="cp-row">
+            <span class="cp-title">CP ${item.cp}</span>
+            <span class="status-badge ${claseEstado}">${item.estadoRuta}</span>
+          </div>
+          <div class="chofer-info">👤 Chofer: ${item.chofer}</div>
+          <div style="font-size: 0.75rem; color: #999;">📅 Fecha: ${item.fecha}</div>
         </div>
-        <div class="card-body" onclick="document.getElementById('det-${index}').style.display = document.getElementById('det-${index}').style.display === 'block' ? 'none' : 'block'">
+        <div class="card-body" onclick="toggleDetalle(${index})">
           <div class="chart-container"><canvas id="c-${index}"></canvas></div>
           <div style="text-align: right;">
-             <div style="font-size: 1.8rem; font-weight: bold;">${progreso}%</div>
-             <div style="font-size: 0.7rem; color: #666;">PROGRESO</div>
+             <div style="font-size: 1.8rem; font-weight: bold; color: #1e3a5f;">${progreso}%</div>
+             <div style="font-size: 0.7rem; color: #666; letter-spacing: 1px;">PROGRESO</div>
           </div>
         </div>
         <div id="det-${index}" class="info-detalles">
-          <li style="color:#2d572c">Entregados: ${s.ENTREGADO}</li>
-          <li style="color:#856404">Parciales: ${s.PARCIAL}</li>
-          <li style="color:#a52828">Totales: ${s.TOTAL}</li>
-          <li style="color:#666">Pendientes: ${s.PENDIENTE}</li>
+          <li style="color:#2d572c"><span>Entregados:</span> <span>${s.ENTREGADO}</span></li>
+          <li style="color:#856404"><span>Rechazos Parciales:</span> <span>${s.PARCIAL}</span></li>
+          <li style="color:#a52828"><span>Rechazos Totales:</span> <span>${s.TOTAL}</span></li>
+          <li style="color:#666"><span>Pendientes:</span> <span>${s.PENDIENTE}</span></li>
           <a href="${item.url}" target="_blank" class="btn-sheet">IR A LA PLANILLA</a>
         </div>
       `;
@@ -97,13 +151,18 @@
         data: {
           datasets: [{
             data: [s.ENTREGADO, s.PARCIAL, s.TOTAL, s.PENDIENTE],
-            backgroundColor: ['#b6d7a8', '#ffe599', '#ea9999', '#dee2e6'], // Colores originales
+            backgroundColor: ['#b6d7a8', '#ffe599', '#ea9999', '#dee2e6'],
             borderWidth: 0
           }]
         },
-        options: { cutout: '75%', plugins: { legend: { display: false } } }
+        options: { cutout: '70%', plugins: { legend: { display: false } }, animation: { duration: 500 } }
       });
     });
+  }
+
+  function toggleDetalle(index) {
+    const el = document.getElementById(`det-${index}`);
+    el.style.display = (el.style.display === 'block') ? 'none' : 'block';
   }
 
   window.onload = cargarDashboard;

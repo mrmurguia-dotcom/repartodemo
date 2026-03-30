@@ -98,21 +98,20 @@
                         const dir = dirMatch ? dirMatch[1].trim() : (txt.match(/Dirección\s+(.*?)(?=\s+Categoría)/)?.[1]?.trim() || "S/D");
                         // --------------------------------------------
                         
-                        // EXTRACCIÓN MEJORADA: Busca "Total Unidades" (Factura) o "Botellas" (Remito)
-                        const cajas = parseFloat(txt.match(/Total\s+Cajas\s*:\s*([\d.,]+)/)?.[1]?.replace('.','').replace(',','.')) || 0;
-                        
-                        let unidades = 0;
-                        const matchUnidades = txt.match(/Total\s+Unidades\s*:\s*([\d.,]+)/i);
-                        const matchBotellas = txt.match(/Botellas\s*:\s*([\d.,]+)/i);
-                        
-                        if (matchUnidades) {
-                            unidades = parseFloat(matchUnidades[1].replace('.','').replace(',','.'));
-                        } else if (matchBotellas) {
-                            unidades = parseFloat(matchBotellas[1].replace('.','').replace(',','.'));
-                        }
+                       // EXTRACCIÓN MEJORADA: Busca "Total Unidades" (Factura) o "Botellas" (Remito)
+                       const cajas = parseFloat(txt.match(/Total\s+Cajas\s*:\s*([\d.,]+)/)?.[1]?.replaceAll('.','').replace(',','.')) || 0;
 
-                        const total = parseFloat(txt.match(/Total:\s*([\d.,]+)/)?.[1]?.replace('.','').replace(',','.')) || 0;
+                       let unidades = 0;
+                       const matchUnidades = txt.match(/Total\s+Unidades\s*:\s*([\d.,]+)/i);
+                       const matchBotellas = txt.match(/Botellas\s*:\s*([\d.,]+)/i);
 
+                       if (matchUnidades) {
+                       unidades = parseFloat(matchUnidades[1].replaceAll('.','').replace(',','.'));
+                       } else if (matchBotellas) {
+                       unidades = parseFloat(matchBotellas[1].replaceAll('.','').replace(',','.'));
+                       }
+
+                       const total = parseFloat(txt.match(/Total:\s*([\d.,]+)/)?.[1]?.replaceAll('.','').replace(',','.')) || 0;
                         if (!store[cp]) store[cp] = { docs: [] };
                         
                         let index = store[cp].docs.findIndex(d => d.numero === nro);

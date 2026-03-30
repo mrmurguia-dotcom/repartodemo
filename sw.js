@@ -5,6 +5,7 @@ const CACHE_NAME = 'm2-consultoria-v1';
 const ASSETS_TO_CACHE = [
   '/repartodemo/',
   '/repartodemo/index.html',
+  '/repartodemo/logom2.jpg', // <--- Agregada
   '/repartodemo/android-icon-192x192.png',
   '/repartodemo/icon-512x512.png'
   // IMPORTANTE: Si tienes archivos CSS o JS, agrégalos aquí abajo. 

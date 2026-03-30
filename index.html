@@ -5,20 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Reparto DEMO - M2</title>
 
-    <link rel="icon" type="image/png" href="favicon-32x32.png">
-
     <link rel="manifest" href="manifest.json">
-
-    <link rel="apple-touch-icon" href="apple-icon-180x180.png">
-
+    <link rel="icon" type="image/png" href="icon-512x512.png"> <link rel="apple-touch-icon" href="apple-icon-180x180.png">
+    
     <meta name="theme-color" content="#1e3a5f">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Panel Reparto DEMO - M2</title>
-
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="apple-icon-180x180.png">
-<meta name="theme-color" content="#1e3a5f">
-<meta name="apple-mobile-web-app-capable" content="yes">
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 30px; background: #f9fbfd; color: #333; }
@@ -72,21 +63,19 @@
     
     <div class="button-container">
         <a href="armadorepartosupervisor/index.html" class="btn">Carga de FC/RTO - Supervisor</a>
-
         <a href="repartochofer/index.html" class="btn btn-secondary">Hoja de Ruta - Chofer</a>
-
         <a href="controlruteo/index.html" class="btn btn-ruteo">Control Ruteo - Supervisor</a>
-
     </div>
+
     <script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js")
-      .then(reg => console.log("✅ SW registrado", reg.scope))
-      .catch(err => console.error("❌ Error SW", err));
-  });
-}
-</script>
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", () => {
+            navigator.serviceWorker.register("sw.js")
+              .then(reg => console.log("✅ SW registrado", reg.scope))
+              .catch(err => console.error("❌ Error SW", err));
+          });
+        }
+    </script>
 
 </body>
 </html>

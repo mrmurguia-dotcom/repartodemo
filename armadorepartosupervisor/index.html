@@ -147,7 +147,7 @@
                         <td class="p-3 text-slate-500">${d.cliente}</td>
                         <td class="p-3 text-right font-black text-blue-600">${d.cajas} CJ</td>
                         <td class="p-3 text-right font-bold text-slate-600">${d.unidades} UN</td>
-                        <td class="p-3 text-right font-medium text-slate-800">$${d.importe.toLocaleString('es-AR')}</td>
+                        <td class="p-3 text-right font-medium text-slate-800">$${d.importe.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     </tr>
                 `).join('');
 

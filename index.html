@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Reparto DEMO - M2</title>
 
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="icon-512x512.png"> <link rel="apple-touch-icon" href="apple-icon-180x180.png">
+    <link rel="manifest" href="/repartodemo/manifest.json">
+    <link rel="icon" type="image/png" href="/repartodemo/icon-512x512.png"> 
+    <link rel="apple-touch-icon" href="/repartodemo/apple-icon-180x180.png">
     
     <meta name="theme-color" content="#1e3a5f">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="M2 - Reparto">
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 30px; background: #f9fbfd; color: #333; }
@@ -48,9 +51,6 @@
 
         .btn-ruteo { background: #ef6c00; }
         .btn-ruteo:hover { background: #e65100; }
-
-        .btn-unidades { background: #111827; }
-        .btn-unidades:hover { background: #000000; }
     </style>
 </head>
 
@@ -70,9 +70,10 @@
     <script>
         if ("serviceWorker" in navigator) {
           window.addEventListener("load", () => {
-            navigator.serviceWorker.register("sw.js")
-              .then(reg => console.log("✅ SW registrado", reg.scope))
-              .catch(err => console.error("❌ Error SW", err));
+            // Usamos la ruta absoluta para evitar problemas de carpetas
+            navigator.serviceWorker.register("/repartodemo/sw.js")
+              .then(reg => console.log("✅ SW registrado en el scope:", reg.scope))
+              .catch(err => console.error("❌ Error al registrar el SW:", err));
           });
         }
     </script>

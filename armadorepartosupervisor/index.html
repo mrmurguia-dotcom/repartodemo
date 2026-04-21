@@ -81,7 +81,9 @@
                     const pg = await pdf.getPage(i);
                     const txt = (await pg.getTextContent()).items.map(it => it.str).join(' ');
 
-                    const esRemito = txt.includes("Remito R");
+                    // --- CORRECCIÓN DE TIPO ---
+                    // Usamos regex para ignorar espacios múltiples y buscamos "Documento no válido..." por seguridad
+                    const esRemito = /(Remito\s*R|Documento\s*no\s*v[aá]lido\s*como\s*factura)/i.test(txt);
                     const labelTipo = esRemito ? "REMITO" : "FACTURA";
                     
                     const nroMatch = txt.match(/Nro\.:\s*(\d{4,5}\s*-\s*\d{8})/);
